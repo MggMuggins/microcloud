@@ -70,7 +70,7 @@ func (s LXDService) Client(ctx context.Context, secret string) (lxd.InstanceServ
 
 // remoteClient returns an https client for the given address:port.
 func (s LXDService) remoteClient(secret string, address string, port int) (lxd.InstanceServer, error) {
-	c, err := s.m.RemoteClient(util.CanonicalNetworkAddress(address, port))
+	c, err := s.m.RemoteClient(util.CanonicalNetworkAddress(address, int64(port)))
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (s LXDService) Bootstrap(ctx context.Context) error {
 	}
 
 	// Prepare the update.
-	addr := util.CanonicalNetworkAddress(s.address, s.port)
+	addr := util.CanonicalNetworkAddress(s.address, int64(s.port))
 
 	newServer := currentServer.Writable()
 	newServer.Config["core.https_address"] = "[::]:8443"

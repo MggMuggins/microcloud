@@ -19,7 +19,7 @@ func (s *LXDService) configFromToken(token string) (*api.ClusterPut, error) {
 
 	config := &api.ClusterPut{
 		Cluster:         api.Cluster{ServerName: s.name, Enabled: true},
-		ServerAddress:   util.CanonicalNetworkAddress(s.address, s.port),
+		ServerAddress:   util.CanonicalNetworkAddress(s.address, int64(s.port)),
 		ClusterPassword: token,
 	}
 
@@ -27,7 +27,7 @@ func (s *LXDService) configFromToken(token string) (*api.ClusterPut, error) {
 	// cluster certificate from each address in the join token until we succeed.
 	for _, clusterAddress := range joinToken.Addresses {
 		// Cluster URL
-		config.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, s.port)
+		config.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, int64(s.port))
 
 		// Cluster certificate
 		cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.ClusterAddress), version.UserAgent)
