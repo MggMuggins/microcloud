@@ -141,6 +141,11 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	err = validateSystems(s, systems)
+	if err != nil {
+		return err
+	}
+
 	err = setupCluster(s, systems)
 	if err != nil {
 		return err
@@ -412,6 +417,65 @@ func AddPeers(sh *service.Handler, systems map[string]InitSystem) error {
 	}
 
 	return nil
+}
+
+func validateSystems(s *service.Handler, systems map[string]InitSystem) error {
+	_, bootstrap := systems[s.Name]
+	if bootstrap {
+		for _, curSystem := range systems {
+			for _, network := range curSystem.Networks {
+				if network.Type == "physical" && network.Name == "UPLINK" {
+					ip4Gateway, hasIp4Gateway := network.Config["ipv4.gateway"]
+					ip6Gateway, hasIp6Gateway := network.Config["ipv6.gateway"]
+					ovnRanges, hasOvnRanges := network.Config["ipv4.ovn.ranges"]
+
+					if hasIp4Gateway || hasIp6Gateway {
+						if ip4Gateway == s.Address {
+							return fmt.Errorf("")
+						}
+
+						if ip6Gateway == s.Address {
+							return fmt.Errorf("")
+						}
+
+						for _, system := range systems {
+							if ip4Gateway == system.ServerInfo.Address {
+								return fmt.Errorf("")
+							}
+
+							if ip6Gateway == system.ServerInfo.Address {
+								return fmt.Errorf("")
+							}
+						}
+					}
+
+					if hasIp4Gateway && hasOvnRanges {
+						ovnRanges, err := shared.ParseIPRanges(ovnRanges)
+						if err != nil {
+							return fmt.Errorf("Invalid ipv4.ovn.ranges: %s", err)
+						}
+
+						_, ip4GatewayNet, err := net.ParseCIDR(ip4Gateway)
+						if err != nil {
+							return fmt.Errorf("Invalid ipv4.gateway %q", ip4Gateway)
+						}
+
+						for _, ovnRange := range ovnRanges {
+							if !subnetContainsRange(ip4GatewayNet, ovnRange) {
+								return fmt.Errorf("ipv4.ovn.ranges %q must fall within the ipv4.gateway subnet %q", ip4Gateway, ovnRanges)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func subnetContainsRange(subnet *net.IPNet, r *shared.IPRange) bool {
+	return subnet.Contains(r.Start) && subnet.Contains(r.End)
 }
 
 // setupCluster Bootstraps the cluster if necessary, adds all peers to the cluster, and completes any post cluster
