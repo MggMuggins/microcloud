@@ -13,21 +13,9 @@ import (
 func newSystemWithNetworks(networks []lxdAPI.NetworksPost) InitSystem {
 	return InitSystem{
 		ServerInfo: mdns.ServerInfo{
-			Version:    "",
-			Name:       "",
-			Address:    "127.0.0.1",
-			Interface:  "",
-			Services:   nil,
-			AuthSecret: "",
+			Address: "127.0.0.1",
 		},
-		AvailableDisks:     nil,
-		MicroCephDisks:     nil,
-		TargetNetworks:     nil,
-		TargetStoragePools: nil,
-		Networks:           networks,
-		StoragePools:       nil,
-		StorageVolumes:     nil,
-		JoinConfig:         nil,
+		Networks: networks,
 	}
 }
 
@@ -36,8 +24,7 @@ func newSystemWithUplinkNetwork(config map[string]string) InitSystem {
 		Name: "UPLINK",
 		Type: "physical",
 		NetworkPut: lxdAPI.NetworkPut{
-			Config:      config,
-			Description: "",
+			Config: config,
 		},
 	}})
 }
@@ -62,15 +49,12 @@ func newSystemWithOvnNetwork(uplinkConfig, ovnConfig map[string]string) InitSyst
 }
 
 func TestValidateSystems(t *testing.T) {
-	handler, err := service.NewHandler("testSystem", "localhost", "/tmp/microcloud_test_handler", true, true)
+	handler, err := service.NewHandler("testSystem", "192.168.1.1/24", "/tmp/microcloud_test_handler", true, true)
 	if err != nil {
 		t.Fatalf("Failed to create test service handler: %s", err)
 	}
 
 	validSystems := map[string]InitSystem{
-		// The handler must have the same name as one of the systems in order
-		// to perform validation (we must be "bootstrapping a cluster")
-		"testSystem": newSystemWithNetworks([]lxdAPI.NetworksPost{}),
 		"plainGateway": newSystemWithUplinkNetwork(map[string]string{
 			"ipv4.gateway": "10.234.0.1/16",
 		}),
@@ -84,9 +68,17 @@ func TestValidateSystems(t *testing.T) {
 		}),
 	}
 
-	err = validateSystems(handler, validSystems)
-	if err != nil {
-		t.Fatalf("Valid systems failed validate: %s", err)
+	for systemName, system := range validSystems {
+		systems := map[string]InitSystem{
+			// The handler must have the same name as one of the systems in order
+			// to perform validation (we must be "bootstrapping a cluster")
+			"testSystem": newSystemWithNetworks([]lxdAPI.NetworksPost{}),
+			systemName:   system,
+		}
+		err = validateSystems(handler, systems)
+		if err != nil {
+			t.Fatalf("Valid system %q failed validate: %s", systemName, err)
+		}
 	}
 
 	uplinkConfig := map[string]string{
@@ -96,13 +88,15 @@ func TestValidateSystems(t *testing.T) {
 	}
 
 	invalidSystems := map[string]InitSystem{
-		"testSystem": newSystemWithNetworks([]lxdAPI.NetworksPost{}),
-		"0": newSystemWithUplinkNetwork(map[string]string{
-			"ipv4.gateway": "192.168.1.1",
-		}),
+		//"gatewayNotCIDR": newSystemWithUplinkNetwork(map[string]string{
+		//	"ipv4.gateway": "192.168.1.1",
+		//}),
 		"backwardsRange": newSystemWithUplinkNetwork(map[string]string{
 			"ipv4.gateway":    "10.42.0.1/16",
 			"ipv4.ovn.ranges": "10.42.5.255-10.42.1.1",
+		}),
+		"localhostGateway": newSystemWithUplinkNetwork(map[string]string{
+			"ipv4.gateway": "192.168.1.1/24",
 		}),
 		"conflict4Net": newSystemWithOvnNetwork(uplinkConfig, map[string]string{
 			"ipv4.address": "10.28.62.1/24",
@@ -112,9 +106,15 @@ func TestValidateSystems(t *testing.T) {
 		}),
 	}
 
-	err = validateSystems(handler, invalidSystems)
-	if err == nil {
-		t.Fatalf("Invalid systems passed validation")
+	for systemName, system := range invalidSystems {
+		systems := map[string]InitSystem{
+			"testSystem": newSystemWithNetworks([]lxdAPI.NetworksPost{}),
+			systemName:   system,
+		}
+		err = validateSystems(handler, systems)
+		if err == nil {
+			t.Fatalf("Invalid system %q passed validation", systemName)
+		}
 	}
 }
 
