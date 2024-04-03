@@ -437,24 +437,24 @@ func validateSystems(s *service.Handler, systems map[string]InitSystem) error {
 
 			if hasIp4Gateway {
 				if ip4Gateway == s.Address {
-					return fmt.Errorf("ipv4.gateway %q cannot be the local address %q", ip4Gateway, s.Address)
+					return fmt.Errorf("UPLINK ipv4.gateway %q cannot be the local address %q", ip4Gateway, s.Address)
 				}
 
 				for _, system := range systems {
 					if ip4Gateway == system.ServerInfo.Address {
-						return fmt.Errorf("ipv4.gateway %q cannot be system address %q", ip4Gateway, system.ServerInfo.Address)
+						return fmt.Errorf("UPLINK ipv4.gateway %q cannot be system address %q", ip4Gateway, system.ServerInfo.Address)
 					}
 				}
 			}
 
 			if hasIp6Gateway {
 				if ip6Gateway == s.Address {
-					return fmt.Errorf("ipv6.gateway %q cannot be the local address %q", ip6Gateway, s.Address)
+					return fmt.Errorf("UPLINK ipv6.gateway %q cannot be the local address %q", ip6Gateway, s.Address)
 				}
 
 				for _, system := range systems {
 					if ip6Gateway == system.ServerInfo.Address {
-						return fmt.Errorf("ipv6.gateway %q cannot be system address %q", ip6Gateway, system.ServerInfo.Address)
+						return fmt.Errorf("UPLINK ipv6.gateway %q cannot be system address %q", ip6Gateway, system.ServerInfo.Address)
 					}
 				}
 			}
@@ -474,10 +474,6 @@ func validateSystems(s *service.Handler, systems map[string]InitSystem) error {
 	}
 
 	return nil
-}
-
-func subnetContainsRange(subnet *net.IPNet, r *shared.IPRange) bool {
-	return subnet.Contains(r.Start) && subnet.Contains(r.End)
 }
 
 // setupCluster Bootstraps the cluster if necessary, adds all peers to the cluster, and completes any post cluster

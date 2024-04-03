@@ -1,10 +1,8 @@
 package main
 
 import (
-	"net"
 	"testing"
 
-	"github.com/canonical/lxd/shared"
 	lxdAPI "github.com/canonical/lxd/shared/api"
 	"github.com/canonical/microcloud/microcloud/mdns"
 	"github.com/canonical/microcloud/microcloud/service"
@@ -29,27 +27,8 @@ func newSystemWithUplinkNetwork(config map[string]string) InitSystem {
 	}})
 }
 
-func newSystemWithOvnNetwork(uplinkConfig, ovnConfig map[string]string) InitSystem {
-	return newSystemWithNetworks([]lxdAPI.NetworksPost{
-		{
-			Name: "UPLINK",
-			Type: "physical",
-			NetworkPut: lxdAPI.NetworkPut{
-				Config: uplinkConfig,
-			},
-		},
-		{
-			Name: "default",
-			Type: "ovn",
-			NetworkPut: lxdAPI.NetworkPut{
-				Config: ovnConfig,
-			},
-		},
-	})
-}
-
 func TestValidateSystems(t *testing.T) {
-	handler, err := service.NewHandler("testSystem", "192.168.1.1/24", "/tmp/microcloud_test_handler", true, true)
+	handler, err := service.NewHandler("testSystem", "192.168.1.1/16", "/tmp/microcloud_test_handler", true, true)
 	if err != nil {
 		t.Fatalf("Failed to create test service handler: %s", err)
 	}
@@ -63,8 +42,8 @@ func TestValidateSystems(t *testing.T) {
 			"ipv4.ovn.ranges": "10.42.1.1-10.42.5.255",
 		}),
 		"24Net": newSystemWithUplinkNetwork(map[string]string{
-			"ipv4.gateway":    "192.168.4.1/24",
-			"ipv4.ovn.ranges": "192.168.4.50-192.168.4.60",
+			"ipv4.gateway":    "190.168.4.1/24",
+			"ipv4.ovn.ranges": "190.168.4.50-190.168.4.60",
 		}),
 	}
 
@@ -81,12 +60,6 @@ func TestValidateSystems(t *testing.T) {
 		}
 	}
 
-	uplinkConfig := map[string]string{
-		"ipv4.gateway":    "10.28.0.1/16",
-		"ipv4.ovn.ranges": "10.28.10.1-10.28.20.1",
-		"ipv6.gateway":    "f6ef:9374:923a:632::1/64",
-	}
-
 	invalidSystems := map[string]InitSystem{
 		//"gatewayNotCIDR": newSystemWithUplinkNetwork(map[string]string{
 		//	"ipv4.gateway": "192.168.1.1",
@@ -95,14 +68,16 @@ func TestValidateSystems(t *testing.T) {
 			"ipv4.gateway":    "10.42.0.1/16",
 			"ipv4.ovn.ranges": "10.42.5.255-10.42.1.1",
 		}),
-		"localhostGateway": newSystemWithUplinkNetwork(map[string]string{
-			"ipv4.gateway": "192.168.1.1/24",
+		"rangesOutsideGateway": newSystemWithUplinkNetwork(map[string]string{
+			"ipv4.gateway":    "10.1.1.0/24",
+			"ipv4.ovn.ranges": "10.2.2.50-10.2.2.100",
 		}),
-		"conflict4Net": newSystemWithOvnNetwork(uplinkConfig, map[string]string{
-			"ipv4.address": "10.28.62.1/24",
+		"uplinkInsideManagementNet": newSystemWithUplinkNetwork(map[string]string{
+			"ipv4.gateway":    "192.168.1.1/24",
+			"ipv4.ovn.ranges": "192.168.1.50-192.168.1.200",
 		}),
-		"conflict6Net": newSystemWithOvnNetwork(uplinkConfig, map[string]string{
-			"ipv6.address": "f6ef:9374:923a:632:82::7",
+		"conflictLocal": newSystemWithUplinkNetwork(map[string]string{
+			"ipv4.gateway": "192.168.1.1/16",
 		}),
 	}
 
@@ -114,50 +89,6 @@ func TestValidateSystems(t *testing.T) {
 		err = validateSystems(handler, systems)
 		if err == nil {
 			t.Fatalf("Invalid system %q passed validation", systemName)
-		}
-	}
-}
-
-func TestSubnetContainsRange(t *testing.T) {
-	validSubnetRanges := map[string]string{
-		"10.214.0.0/16":  "10.214.0.55-10.214.0.255",
-		"192.168.2.0/23": "192.168.2.20-192.168.3.127",
-	}
-
-	for cidr, rng := range validSubnetRanges {
-		_, subnet, err := net.ParseCIDR(cidr)
-		if err != nil {
-			t.Fatalf("Failed to parse cidr %q", cidr)
-		}
-
-		ipRange, err := shared.ParseIPRange(rng)
-		if err != nil {
-			t.Fatalf("Failed to parse IPRange %q", rng)
-		}
-
-		if !subnetContainsRange(subnet, ipRange) {
-			t.Fatalf("Range %q fell outside prefix %q", ipRange, subnet)
-		}
-	}
-
-	invalidSubnetRanges := map[string]string{
-		"10.214.0.0/16":  "10.214.0.2-10.215.0.255",
-		"192.168.2.0/23": "192.168.2.49-192.168.4.130",
-	}
-
-	for cidr, rng := range invalidSubnetRanges {
-		_, subnet, err := net.ParseCIDR(cidr)
-		if err != nil {
-			t.Fatalf("Failed to parse cidr %q", cidr)
-		}
-
-		ipRange, err := shared.ParseIPRange(rng)
-		if err != nil {
-			t.Fatalf("Failed to parse IPRange %q", rng)
-		}
-
-		if subnetContainsRange(subnet, ipRange) {
-			t.Fatalf("Range %q fell inside prefix %q", ipRange, subnet)
 		}
 	}
 }
