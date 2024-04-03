@@ -460,25 +460,25 @@ func validateSystems(s *service.Handler, systems map[string]InitSystem) error {
 				continue
 			}
 
-			ip4Gateway, hasIp4Gateway := network.Config["ipv4.gateway"]
-			ip6Gateway, hasIp6Gateway := network.Config["ipv6.gateway"]
-			ovnRanges, hasOvnRanges := network.Config["ipv4.ovn.ranges"]
+			ip4Gateway, hasIP4Gateway := network.Config["ipv4.gateway"]
+			ip6Gateway, hasIP6Gateway := network.Config["ipv6.gateway"]
+			ovnRanges, hasOVNRanges := network.Config["ipv4.ovn.ranges"]
 
-			if hasIp4Gateway {
+			if hasIP4Gateway {
 				err := ensureSystemsOutsideGateway(ip4Gateway, s.Address, systems)
 				if err != nil {
 					return err
 				}
 			}
 
-			if hasIp6Gateway {
+			if hasIP6Gateway {
 				err := ensureSystemsOutsideGateway(ip6Gateway, s.Address, systems)
 				if err != nil {
 					return err
 				}
 			}
 
-			if hasIp4Gateway && hasOvnRanges {
+			if hasIP4Gateway && hasOVNRanges {
 				_, ip4GatewayNet, err := net.ParseCIDR(ip4Gateway)
 				if err != nil {
 					return fmt.Errorf("Invalid ipv4.gateway %q: %w", ip4Gateway, err)
