@@ -72,13 +72,21 @@ func ensureValidateSystemsFails(handler *service.Handler, testSystems []InitSyst
 func TestValidateSystemsIP6(t *testing.T) {
 	handler := newTestHandler("fc00:feed:beef::bed1", t)
 
-	systems := []InitSystem{
+	validSystems := []InitSystem{
+		newSystemWithUplinkNetConfig("64Net", map[string]string{
+			"ipv6.gateway": "fc00:bad:feed::1/64",
+		}),
+	}
+
+	ensureValidateSystemsPasses(handler, validSystems, t)
+
+	invalidSystems := []InitSystem{
 		newSystemWithUplinkNetConfig("uplinkInsideManagement6Net", map[string]string{
 			"ipv6.gateway": "fc00:feed:beef::1/64",
 		}),
 	}
 
-	ensureValidateSystemsFails(handler, systems, t)
+	ensureValidateSystemsFails(handler, invalidSystems, t)
 }
 
 func TestValidateSystemsIP4(t *testing.T) {
