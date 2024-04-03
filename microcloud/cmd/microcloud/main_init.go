@@ -419,6 +419,35 @@ func AddPeers(sh *service.Handler, systems map[string]InitSystem) error {
 	return nil
 }
 
+func ensureSystemsOutsideGateway(gateway string, localAddr string, systems map[string]InitSystem) error {
+	_, ip4Net, err := net.ParseCIDR(gateway)
+	if err != nil {
+		return fmt.Errorf("Invalid ipv4.gateway for UPLINK: %w", err)
+	}
+
+	localAddrIP := net.ParseIP(localAddr)
+	if localAddrIP == nil {
+		return fmt.Errorf("Invalid local address %q", localAddr)
+	}
+
+	if ip4Net.Contains(localAddrIP) {
+		return fmt.Errorf("UPLINK ipv4.gateway must not include local address %q", localAddr)
+	}
+
+	for _, system := range systems {
+		systemAddr := net.ParseIP(system.ServerInfo.Address)
+		if systemAddr == nil {
+			return fmt.Errorf("Invalid address %q for system %q", system.ServerInfo.Address, system.ServerInfo.Name)
+		}
+
+		if ip4Net.Contains(systemAddr) {
+			return fmt.Errorf("UPLINK ipv4.gateway must not include system address %q", systemAddr)
+		}
+	}
+
+	return nil
+}
+
 func validateSystems(s *service.Handler, systems map[string]InitSystem) error {
 	_, bootstrap := systems[s.Name]
 	if !bootstrap {
@@ -436,26 +465,16 @@ func validateSystems(s *service.Handler, systems map[string]InitSystem) error {
 			ovnRanges, hasOvnRanges := network.Config["ipv4.ovn.ranges"]
 
 			if hasIp4Gateway {
-				if ip4Gateway == s.Address {
-					return fmt.Errorf("UPLINK ipv4.gateway %q cannot be the local address %q", ip4Gateway, s.Address)
-				}
-
-				for _, system := range systems {
-					if ip4Gateway == system.ServerInfo.Address {
-						return fmt.Errorf("UPLINK ipv4.gateway %q cannot be system address %q", ip4Gateway, system.ServerInfo.Address)
-					}
+				err := ensureSystemsOutsideGateway(ip4Gateway, s.Address, systems)
+				if err != nil {
+					return err
 				}
 			}
 
 			if hasIp6Gateway {
-				if ip6Gateway == s.Address {
-					return fmt.Errorf("UPLINK ipv6.gateway %q cannot be the local address %q", ip6Gateway, s.Address)
-				}
-
-				for _, system := range systems {
-					if ip6Gateway == system.ServerInfo.Address {
-						return fmt.Errorf("UPLINK ipv6.gateway %q cannot be system address %q", ip6Gateway, system.ServerInfo.Address)
-					}
+				err := ensureSystemsOutsideGateway(ip6Gateway, s.Address, systems)
+				if err != nil {
+					return err
 				}
 			}
 

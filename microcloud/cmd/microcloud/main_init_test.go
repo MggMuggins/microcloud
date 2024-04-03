@@ -11,7 +11,7 @@ import (
 func newSystemWithNetworks(networks []lxdAPI.NetworksPost) InitSystem {
 	return InitSystem{
 		ServerInfo: mdns.ServerInfo{
-			Address: "127.0.0.1",
+			Address: "192.168.1.28",
 		},
 		Networks: networks,
 	}
@@ -28,7 +28,7 @@ func newSystemWithUplinkNetwork(config map[string]string) InitSystem {
 }
 
 func TestValidateSystems(t *testing.T) {
-	handler, err := service.NewHandler("testSystem", "192.168.1.1/16", "/tmp/microcloud_test_handler", true, true)
+	handler, err := service.NewHandler("testSystem", "192.168.1.27", "/tmp/microcloud_test_handler", true, true)
 	if err != nil {
 		t.Fatalf("Failed to create test service handler: %s", err)
 	}
@@ -76,7 +76,7 @@ func TestValidateSystems(t *testing.T) {
 			"ipv4.gateway":    "192.168.1.1/24",
 			"ipv4.ovn.ranges": "192.168.1.50-192.168.1.200",
 		}),
-		"conflictLocal": newSystemWithUplinkNetwork(map[string]string{
+		"uplinkInsideManagementNetNoRange": newSystemWithUplinkNetwork(map[string]string{
 			"ipv4.gateway": "192.168.1.1/16",
 		}),
 	}
