@@ -16,3 +16,4 @@ These how-to guides cover key operations and processes in MicroCloud.
    Get support </how-to/support>
    Contribute to MicroCloud </how-to/contribute>
    Work with MicroCloud </how-to/commands>
+   Recover MicroCloud </how-to/recover>
